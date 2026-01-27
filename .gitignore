@@ -1,0 +1,17 @@
+# OS
+Thumbs.db
+.DS_Store
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Gradle
+.gradle/
+**/build/
+
+# Node
+**/node_modules/
+**/dist/
+**/.env
