@@ -34,10 +34,16 @@ tasks.named('test') {
 
 tasks.register('ingestRss') {
     group = 'newswire'
-    description = 'Fetches RSS feeds and ingests articles into the database'
+    description = 'Runs Spring Boot RSS ingestion in batch mode'
+
+    dependsOn 'classes'
 
     doLast {
-        println 'Ingesting RSS feeds...'
+        exec {
+            commandLine 'cmd', '/c',
+                    'gradlew.bat bootRun --args="--spring.profiles.active=ingest"'
+        }
     }
 }
+
 
