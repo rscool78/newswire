@@ -31,3 +31,13 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+tasks.register('ingestRss') {
+    group = 'newswire'
+    description = 'Fetches RSS feeds and ingests articles into the database'
+
+    doLast {
+        println 'Ingesting RSS feeds...'
+    }
+}
+
