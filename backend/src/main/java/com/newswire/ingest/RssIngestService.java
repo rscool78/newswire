@@ -1,6 +1,7 @@
 package com.newswire.ingest;
 
 import com.newswire.article.Article;
+import com.newswire.article.Category;
 import com.newswire.util.FingerprintUtil;
 import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.feed.synd.SyndFeed;
@@ -16,7 +17,7 @@ import java.util.List;
 @Service
 public class RssIngestService {
 
-    public List<Article> ingest(String feedUrl, String sourceName, String category) {
+    public List<Article> ingest(String feedUrl, String sourceName, Category category) {
         try {
             SyndFeed feed = new SyndFeedInput().build(new XmlReader(new URL(feedUrl)));
 

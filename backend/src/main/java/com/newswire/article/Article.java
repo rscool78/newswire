@@ -9,7 +9,7 @@ public record Article(
         String url,
         String summary,
         String sourceName,
-        String category,
+        Category category,
         Instant publishedAt,
         String fingerprint
 ) {}

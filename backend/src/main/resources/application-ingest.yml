@@ -6,3 +6,15 @@ spring:
 
   main:
     web-application-type: none
+
+newswire:
+  feeds:
+    - url: "https://feeds.bbci.co.uk/news/rss.xml"
+      sourceName: "BBC News"
+      category: WORLD_ECONOMIES
+    - url: "https://feeds.bbci.co.uk/news/technology/rss.xml"
+      sourceName: "BBC Technology"
+      category: TECHNOLOGY
+    - url: "https://feeds.bbci.co.uk/news/health/rss.xml"
+      sourceName: "BBC Health"
+      category: HEALTHCARE    
