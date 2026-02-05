@@ -4,6 +4,8 @@ import com.newswire.article.Article;
 import com.newswire.article.Category;
 import com.newswire.source.FeedProperties;
 import com.newswire.source.FeedSource;
+import com.newswire.article.ArticleEntity;
+import com.newswire.article.ArticleRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -23,10 +25,12 @@ public class RssIngestRunner implements CommandLineRunner {
 
     private final RssIngestService rss;
     private final FeedProperties feedProps;
+    private final ArticleRepository articleRepo;
 
-    public RssIngestRunner(RssIngestService rss, FeedProperties feedProps) {
+    public RssIngestRunner(RssIngestService rss, FeedProperties feedProps, ArticleRepository articleRepo) {
         this.rss = rss;
         this.feedProps = feedProps;
+        this.articleRepo = articleRepo;
     }
 
     @Override
@@ -62,6 +66,28 @@ public class RssIngestRunner implements CommandLineRunner {
                 .toList();
 
         System.out.println("After dedupe: " + dedupedSorted.size());
+
+
+        //added to dedupe sorted
+        int inserted = 0;
+
+        for (Article a : dedupedSorted) {
+            if (articleRepo.existsByFingerprint(a.fingerprint())) continue;
+
+            articleRepo.save(new ArticleEntity(
+                    a.title(),
+                    a.url(),
+                    a.summary(),
+                    a.sourceName(),
+                    a.category(),
+                    a.publishedAt(),
+                    a.fingerprint()
+            ));
+            inserted++;
+        }
+
+        System.out.println("Inserted new rows: " + inserted);
+
 
         // 2) Group by category and print top 5 per category
         //Map<com.newswire.article.Category, List<Article>> byCategory =
