@@ -4,6 +4,7 @@ spring:
     
   autoconfigure:
     exclude:
+      # This commented out lines force ingest to write to Postgres
       #- org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
       #- org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
 
