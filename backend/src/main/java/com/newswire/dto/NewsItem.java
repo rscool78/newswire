@@ -1,3 +1,15 @@
 package com.newswire.dto;
 
-public record NewsItem(String title, String url) {}
+import com.newswire.article.Category;
+
+import java.time.Instant;
+
+public record NewsItem(
+        String title,
+        String url,
+        String sourceName,
+        Category category,
+        Instant publishedAt
+) {}
+
+//public record NewsItem(String title, String url) {}

@@ -18,7 +18,7 @@ public class NewsController {
     }
 }*/
 
-package com.newswire.controller;
+/*package com.newswire.controller;
 
 import com.newswire.dto.NewsItem;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,7 +27,7 @@ import java.util.List;
 
 @RestController
 public class NewsController {
-    
+
     @GetMapping("/api/news")
     public List<NewsItem> news() {
         return List.of(
@@ -35,5 +35,32 @@ public class NewsController {
             new NewsItem("React frontend connected", "https://vitejs.dev")
         );
     }
+}*/
+
+package com.newswire.controller;
+
+import com.newswire.dto.NewsItem;
+import com.newswire.service.RssNewsService;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+public class NewsController {
+
+    private final RssNewsService rssNewsService;
+
+    public NewsController(RssNewsService rssNewsService) {
+        this.rssNewsService = rssNewsService;
+    }
+
+    @GetMapping("/api/news")
+    public List<NewsItem> news() {
+        //return rss.fetchLatest(40);
+        return rssNewsService.fetchLatest(40);
+    }
 }
+
+
 

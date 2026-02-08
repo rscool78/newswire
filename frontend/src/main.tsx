@@ -26,11 +26,14 @@ setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)*/
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import LegacyApp from "./legacy/App";
 import "./style.css";
+
+const USE_LEGACY = false;
 
 ReactDOM.createRoot(document.getElementById("app")!).render(
   <React.StrictMode>
-    <App />
+    {USE_LEGACY ? <LegacyApp/> : <App />}
   </React.StrictMode>
 );
 

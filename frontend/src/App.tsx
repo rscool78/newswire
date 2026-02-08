@@ -1,15 +1,22 @@
-/*export default function App() {
-  return (
-    <div style={{ padding: 20 }}>
-      <h1>Newswire React Frontend</h1>
-      <p>React is wired up correctly.</p>
-    </div>
-  );
-}*/
-
 import { useEffect, useState } from "react";
 
-type NewsItem = { title: string; url: string };
+type Category =
+  | "FINANCE"
+  | "POLITICS"
+  | "HEALTHCARE"
+  | "TECHNOLOGY"
+  | "MILITARY"
+  | "MILITARY_INTELLIGENCE"
+  | "WORLD_POPULATION"
+  | "WORLD_ECONOMIES";
+
+type NewsItem = {
+  title: string;
+  url: string;
+  sourceName: string;
+  category: Category;
+  publishedAt: string; // ISO string
+};
 
 export default function App() {
   const [items, setItems] = useState<NewsItem[]>([]);
@@ -17,7 +24,10 @@ export default function App() {
 
   useEffect(() => {
     fetch("/api/news")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json();
+      })
       .then((data) => {
         setItems(Array.isArray(data) ? data : data.items ?? []);
         setStatus("ready");
@@ -28,18 +38,26 @@ export default function App() {
   return (
     <div style={{ padding: 20, fontFamily: "system-ui" }}>
       <h1>Newswire</h1>
+
       {status === "loading" && <p>Loading…</p>}
       {status === "error" && <p>Backend not reachable at <code>/api/news</code></p>}
 
-      <ul>
+      <ul style={{ paddingLeft: 18 }}>
         {items.map((x, i) => (
-          <li key={i}>
-            <a href={x.url} target="_blank" rel="noreferrer">{x.title}</a>
+          <li key={i} style={{ marginBottom: 10 }}>
+            <a href={x.url} target="_blank" rel="noreferrer">
+              {x.title}
+            </a>
+            <div style={{ fontSize: 12, opacity: 0.75, marginTop: 2 }}>
+              {(() => {
+                const d = new Date(x.publishedAt);
+                const when = isNaN(d.getTime()) ? "Unknown time" : d.toLocaleString();
+                return `${x.sourceName} • ${x.category} • ${when}`;
+              })()}
+            </div>
           </li>
         ))}
       </ul>
     </div>
   );
 }
-
-
