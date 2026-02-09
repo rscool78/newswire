@@ -5,9 +5,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
+      // Anything starting with /api goes to Spring Boot
       "/api": {
         target: "http://localhost:8080",
         changeOrigin: true,
+        secure: false,
       },
     },
   },

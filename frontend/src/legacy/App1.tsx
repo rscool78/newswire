@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 
 type NewsItem = { title: string; url: string };
 
-export default function LegacyApp() {
+export default function App1() {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
@@ -34,7 +34,7 @@ export default function LegacyApp() {
       <ul>
         {items.map((x, i) => (
           <li key={i}>
-            <a href={x.url} target="_blank" rel="noreferrer">{x.title}</a>
+            <a href={x.url} target="_blank" rel="noopener noreferrer">{x.title}</a>
           </li>
         ))}
       </ul>
