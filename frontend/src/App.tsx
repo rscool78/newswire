@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Category =
   | "FINANCE"
@@ -11,10 +11,12 @@ type Category =
   | "WORLD_ECONOMIES";
 
 type NewsItem = {
+  id?: number;            // optional if you don’t want to rely on it yet
   title: string;
   url: string;
   sourceName: string;
   category: Category;
+  summary?: string | null; // ✅ add this
   publishedAt: string; // ISO string
 };
 
@@ -22,6 +24,18 @@ type Status = {
   lastRun: string | null;
   lastSuccess: string | null;
   lastError: string | null;
+};
+
+type PageMeta = {
+  number: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+};
+
+type PagedResponse<T> = {
+  items: T[];
+  page: PageMeta;
 };
 
 function formatWhen(iso: string | null): string {
@@ -48,6 +62,10 @@ function relativeFromNow(iso: string | null): string {
 }
 
 export default function App() {
+  const PAGE_SIZE = 50;
+
+  const [page, setPage] = useState(0);
+  const [pageMeta, setPageMeta] = useState<PageMeta | null>(null);
   const [items, setItems] = useState<NewsItem[]>([]);
   const [status, setStatus] = useState<Status>({
     lastRun: null,
@@ -57,22 +75,44 @@ export default function App() {
 
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [category, setCategory] = useState<"ALL" | Category>("ALL");
 
-  async function loadNews(selectedCategory: "ALL" | Category = category) {
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const loadingMoreRef = useRef(false);
+  const hasMore = pageMeta ? page < pageMeta.totalPages - 1 : false;
+  
+  async function loadNews(
+    selectedCategory: "ALL" | Category = category,
+    pageNumber: number = page,
+    opts?: { append?: boolean }
+  ) {
     setLoading(true);
     setError(null);
+
     try {
-      const qs =
+      const base =
         selectedCategory === "ALL"
-          ? "/api/news?size=50"
-          : `/api/news?size=50&category=${encodeURIComponent(selectedCategory)}`;
-      const r = await fetch(qs);
-      if (!r.ok) throw new Error(`GET ${qs} failed: ${r.status}`);
-      const data = await r.json();
-      setItems(Array.isArray(data) ? data : []);
+          ? `/api/news?page=${pageNumber}&size=${PAGE_SIZE}`
+          : `/api/news?page=${pageNumber}&size=${PAGE_SIZE}&category=${encodeURIComponent(
+              selectedCategory
+            )}`;
+
+      const r = await fetch(base);
+      if (!r.ok) throw new Error(`GET ${base} failed: ${r.status}`);
+
+      const data = (await r.json()) as PagedResponse<NewsItem>;
+      const newItems = Array.isArray(data?.items) ? data.items : [];
+
+      setPageMeta(data?.page ?? null);
+
+      if (opts?.append) {
+        setItems((prev) => [...prev, ...newItems]);
+      } else {
+        setItems(newItems);
+      }
     } catch (e: any) {
       setError(e?.message ?? "Failed to load news");
     } finally {
@@ -95,6 +135,24 @@ export default function App() {
     }
   }
 
+  async function goPrev() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    const newPage = Math.max(0, page - 1);
+    setPage(newPage);
+    setItems([]);
+    await loadNews(category, newPage);
+  }
+
+  async function goNext() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    const newPage = pageMeta ? Math.min(pageMeta.totalPages - 1, page + 1) : page + 1;
+    setPage(newPage);
+    setItems([]);
+    await loadNews(category, newPage);
+  } 
+
   async function refreshNow() {
     setRefreshing(true);
     setError(null);
@@ -102,7 +160,7 @@ export default function App() {
       const r = await fetch("/api/news/refresh", { method: "POST" });
       if (!r.ok) throw new Error(`POST /api/news/refresh failed: ${r.status}`);
       // After refresh: reload status + news
-      await Promise.all([loadStatus(), loadNews(category)]);
+      await Promise.all([loadStatus(), loadNews(category, page)]);
     } catch (e: any) {
       setError(e?.message ?? "Refresh failed");
       await loadStatus();
@@ -123,9 +181,49 @@ export default function App() {
 
   // reload news when category changes
   useEffect(() => {
-    loadNews(category);
+    setPage(0); // Set page to zero
+    setPageMeta(null); // clear old pageMeta
+    setItems([]); // prevents showing "Page 6 of 10" from the prior category while new one loads.
+    loadingMoreRef.current = false;
+    loadNews(category, 0); //Reset to zero. Removed to avoid duplicate load. Page effect handle it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category]);
+
+  // Load when page changes(but avoid double-load)
+  // useEffect(() => {
+  //loadNews(category, page);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [page]);
+
+  useEffect(() => {
+    if (!loadMoreRef.current) return;
+    if (!hasMore) return;
+
+    const el = loadMoreRef.current;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (first.isIntersecting && !loading && !refreshing && !loadingMoreRef.current) {
+          const nextPage = page + 1;
+          loadingMoreRef.current = true;
+          setLoadingMore(true);
+
+          loadNews(category, nextPage, { append: true })
+            .then(() => setPage(nextPage))
+            .finally(() => {
+              loadingMoreRef.current = false;
+              setLoadingMore(false);
+            });
+        }
+      },
+      { root: null, rootMargin: "600px", threshold: 0 }
+    );
+
+    obs.observe(el);
+    return () => obs.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category, page, hasMore, loading, refreshing]);
 
   const categoriesInList = useMemo(() => {
     const s = new Set<Category>();
@@ -161,7 +259,7 @@ export default function App() {
 
           <button
             onClick={refreshNow}
-            disabled={refreshing}
+            disabled={refreshing || loading}
             style={{
               padding: "8px 12px",
               borderRadius: 10,
@@ -197,10 +295,46 @@ export default function App() {
 
       {loading ? <p style={{ marginTop: 12 }}>Loading…</p> : null}
 
-      <ul style={{ marginTop: 14, paddingLeft: 18 }}>
+            <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
+        <button
+          onClick={goPrev}
+          disabled={loading || refreshing || page === 0}
+          style={{ padding: "6px 10px", borderRadius: 10 }}
+        >
+          ← Prev
+        </button>
+
+        <div style={{ fontSize: 13, opacity: 0.8 }}>
+          Page <strong>{(pageMeta?.number ?? page) + 1}</strong>
+          {pageMeta ? (
+            <>
+              {" "}
+              of <strong>{pageMeta.totalPages}</strong> •{" "}
+              <strong>{pageMeta.totalElements}</strong> articles
+            </>
+          ) : null}
+        </div>
+
+        <button
+          onClick={goNext}
+          disabled={loading || refreshing || (pageMeta ? page >= pageMeta.totalPages - 1 : false)}
+          style={{ padding: "6px 10px", borderRadius: 10, marginLeft: "auto" }}
+        >
+          Next →
+        </button>
+      </div>
+      
+      <ul style={{ marginTop: 14, paddingLeft: 0, listStyle: "none" }}>
         {items.map((x, i) => (
-          <li key={i} style={{ marginBottom: 12 }}>
-            <a href={x.url} target="_blank" rel="noreferrer">
+          <li key={x.id ?? `${x.url}-${i}`} style={{ marginBottom: 12 }}>
+            <a 
+              href={x.url} 
+              target="_blank" 
+              rel="noreferrer"
+              style={{ fontWeight: 500}}
+              onMouseOver={(e) => (e.currentTarget.style.textDecoration = "underline")}
+              onMouseOut={(e) => (e.currentTarget.style.textDecoration = "none")}
+            >
               {x.title}
             </a>
             <div style={{ fontSize: 12, opacity: 0.75, marginTop: 2 }}>
@@ -210,9 +344,20 @@ export default function App() {
                 return isNaN(d.getTime()) ? "Unknown time" : d.toLocaleString();
               })()}
             </div>
+            {x.summary ? (
+              <div style={{ marginTop: 4, fontSize: 13, opacity: 0.9, lineHeight: 1.35 }}>
+                {x.summary.length > 240 ? x.summary.slice(0, 240) + "…" : x.summary}
+              </div>
+            ) : null}
           </li>
         ))}
       </ul>
+      <div ref={loadMoreRef} style={{ height: 1 }} />
+      {hasMore && (loadingMore ? (
+        <p style={{ marginTop: 10, opacity: 0.7 }}>
+          Loading more…
+        </p>
+      ) : null)}
     </div>
   );
 }
