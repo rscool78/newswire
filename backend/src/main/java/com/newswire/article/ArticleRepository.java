@@ -10,6 +10,8 @@ package com.newswire.article;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 
 /*
@@ -83,6 +85,52 @@ public interface ArticleRepository extends JpaRepository<ArticleEntity, Long> {
      */
     Page<ArticleEntity> findByCategoryOrderByPublishedAtDesc(
             Category category,
+            Pageable pageable
+    );
+
+        /*
+    * Search articles by keyword across:
+    *   - title
+    *   - summary
+    *   - sourceName
+    *
+    * Supports optional category filtering and pagination.
+    *
+    * Example API usage:
+    *
+    *   /api/news?q=ai
+    *   /api/news?q=reuters
+    *   /api/news?q=defense&category=MILITARY
+    *
+    * SQL generated roughly:
+    *
+    *   SELECT * FROM articles
+    *   WHERE
+    *     (category = ? OR ? IS NULL)
+    *     AND (
+    *         title LIKE %q%
+    *      OR summary LIKE %q%
+    *      OR source_name LIKE %q%
+    *     )
+    *   ORDER BY published_at DESC
+    */
+    @Query("""
+    select a from ArticleEntity a
+    where (:category is null or a.category = :category)
+    and (:source is null or a.sourceName = :source)
+    and (
+        :q is null
+        or :q = ''
+        or lower(a.title) like lower(concat('%', :q, '%'))
+        or lower(coalesce(a.summary, '')) like lower(concat('%', :q, '%'))
+        or lower(a.sourceName) like lower(concat('%', :q, '%'))
+    )
+    order by a.publishedAt desc
+    """)
+    Page<ArticleEntity> search(
+            @Param("category") Category category,
+            @Param("source") String source,
+            @Param("q") String q,
             Pageable pageable
     );
 }

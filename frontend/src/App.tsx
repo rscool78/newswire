@@ -80,6 +80,11 @@ export default function App() {
 
   const [category, setCategory] = useState<"ALL" | Category>("ALL");
 
+  const [source, setSource] = useState<string | null>(null);
+
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const loadingMoreRef = useRef(false);
   const hasMore = pageMeta ? page < pageMeta.totalPages - 1 : false;
@@ -93,12 +98,16 @@ export default function App() {
     setError(null);
 
     try {
+      const qParam = debouncedQuery.trim()
+        ? `&q=${encodeURIComponent(debouncedQuery.trim())}`
+        : "";
+      
       const base =
         selectedCategory === "ALL"
-          ? `/api/news?page=${pageNumber}&size=${PAGE_SIZE}`
+          ? `/api/news?page=${pageNumber}&size=${PAGE_SIZE}${qParam}`
           : `/api/news?page=${pageNumber}&size=${PAGE_SIZE}&category=${encodeURIComponent(
-              selectedCategory
-            )}`;
+        selectedCategory
+      )}${qParam}`;
 
       const r = await fetch(base);
       if (!r.ok) throw new Error(`GET ${base} failed: ${r.status}`);
@@ -189,6 +198,24 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category]);
 
+  useEffect(() => {
+    setPage(0);
+    setPageMeta(null);
+    setItems([]);
+    loadingMoreRef.current = false;
+    loadNews(category, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery]);
+
+ 
+  useEffect(() => {
+  const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 400); // 400ms delay
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
   // Load when page changes(but avoid double-load)
   // useEffect(() => {
   //loadNews(category, page);
@@ -223,7 +250,7 @@ export default function App() {
     obs.observe(el);
     return () => obs.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, page, hasMore, loading, refreshing]);
+  }, [category, page, hasMore, loading, refreshing, debouncedQuery]);
 
   const categoriesInList = useMemo(() => {
     const s = new Set<Category>();
@@ -237,6 +264,18 @@ export default function App() {
         <h1 style={{ margin: 0 }}>Newswire</h1>
 
         <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
+            <input
+              placeholder="Search news..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              style={{
+                padding: "6px 8px",
+                borderRadius: 8,
+                border: "1px solid #ccc",
+                minWidth: 220
+              }}
+              disabled={loading || refreshing}
+            />
           <label style={{ fontSize: 13, opacity: 0.8 }}>
             Category{" "}
             <select
@@ -247,8 +286,16 @@ export default function App() {
             >
               <option value="ALL">All</option>
               {/* use categories from current list if available; fallback to a few known */}
-              {(categoriesInList.length ? categoriesInList : (["FINANCE", "POLITICS", "TECHNOLOGY"] as Category[])).map(
-                (c) => (
+              {([
+                "FINANCE",
+                 "POLITICS",
+                 "HEALTHCARE",
+                 "TECHNOLOGY",
+                 "MILITARY", 
+                 "MILITARY_INTELLIGENCE", 
+                 "WORLD_POPULATION", 
+                 "WORLD_ECONOMIES"
+                ] as Category[]).map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
@@ -326,26 +373,84 @@ export default function App() {
       
       <ul style={{ marginTop: 14, paddingLeft: 0, listStyle: "none" }}>
         {items.map((x, i) => (
-          <li key={x.id ?? `${x.url}-${i}`} style={{ marginBottom: 12 }}>
-            <a 
-              href={x.url} 
-              target="_blank" 
-              rel="noreferrer"
-              style={{ fontWeight: 500}}
-              onMouseOver={(e) => (e.currentTarget.style.textDecoration = "underline")}
-              onMouseOut={(e) => (e.currentTarget.style.textDecoration = "none")}
-            >
-              {x.title}
-            </a>
-            <div style={{ fontSize: 12, opacity: 0.75, marginTop: 2 }}>
-              {x.sourceName} • {x.category} •{" "}
-              {(() => {
-                const d = new Date(x.publishedAt);
-                return isNaN(d.getTime()) ? "Unknown time" : d.toLocaleString();
-              })()}
+          <li
+            key={x.id ?? `${x.url}-${i}`}
+            style={{
+              marginBottom: 12,
+              padding: 14,
+              borderRadius: 14,
+              border: "1px solid rgba(0,0,0,0.08)",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+            }}
+          >
+            <div style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
+              <a
+                href={x.url}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  fontWeight: 650,
+                  textDecoration: "none",
+                  color: "inherit",
+                  lineHeight: 1.25,
+                }}
+                onMouseOver={(e) => (e.currentTarget.style.textDecoration = "underline")}
+                onMouseOut={(e) => (e.currentTarget.style.textDecoration = "none")}
+              >
+                {x.title}
+              </a>
+
+              <span
+                style={{
+                  marginLeft: "auto",
+                  fontSize: 12,
+                  opacity: 0.7,
+                  whiteSpace: "nowrap",
+                }}
+                title={(() => {
+                  const d = new Date(x.publishedAt);
+                  return isNaN(d.getTime()) ? "Unknown time" : d.toLocaleString();
+                })()}
+              >
+                {relativeFromNow(x.publishedAt)}
+              </span>
             </div>
+
+            <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <span
+                style={{
+                  fontSize: 12,
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                  background: "rgba(0,0,0,0.06)",
+                }}
+                title="Source"
+              >
+                {x.sourceName}
+              </span>
+
+              <span
+                style={{
+                  fontSize: 12,
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                  background: "rgba(0,0,0,0.06)",
+                }}
+                title="Category"
+              >
+                {x.category}
+              </span>
+
+              <span style={{ fontSize: 12, opacity: 0.7 }}>
+                {(() => {
+                  const d = new Date(x.publishedAt);
+                  return isNaN(d.getTime()) ? "Unknown time" : d.toLocaleString();
+                })()}
+              </span>
+            </div>
+
             {x.summary ? (
-              <div style={{ marginTop: 4, fontSize: 13, opacity: 0.9, lineHeight: 1.35 }}>
+              <div style={{ marginTop: 10, fontSize: 13, opacity: 0.92, lineHeight: 1.4 }}>
                 {x.summary.length > 240 ? x.summary.slice(0, 240) + "…" : x.summary}
               </div>
             ) : null}

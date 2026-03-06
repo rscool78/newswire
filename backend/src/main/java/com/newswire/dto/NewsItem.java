@@ -9,6 +9,7 @@ public record NewsItem(
         String url,
         String sourceName,
         Category category,
+        String summary,
         Instant publishedAt
 ) {}
 

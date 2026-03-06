@@ -3,19 +3,23 @@ package com.newswire.service;
 import com.newswire.article.ArticleEntity;
 import com.newswire.article.ArticleRepository;
 import com.newswire.dto.NewsItem;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Instant;
 
 @Service
 public class ArticleStoreService {
 
     private final ArticleRepository repo;
+    private final SummarizationService summarizationService;
 
-    public ArticleStoreService(ArticleRepository repo) {
+    public ArticleStoreService(ArticleRepository repo, SummarizationService summarizationService) {
         this.repo = repo;
+        this.summarizationService = summarizationService;
     }
 
     @Transactional
@@ -23,28 +27,41 @@ public class ArticleStoreService {
         int inserted = 0;
 
         for (NewsItem x : items) {
-            String fp = fingerprint(x.url(), x.title()); // matches your comment
+            String title = x.title() == null ? "" : x.title();
+            String url = x.url() == null ? "" : x.url();
+
+            if (title.isBlank() || url.isBlank()) continue;
+
+            String fp = fingerprint(url, title);
 
             if (repo.existsByFingerprint(fp)) continue;
 
-            repo.save(new ArticleEntity(
-                    x.title(),
-                    x.url(),
-                    null,               // summary (we’ll populate later from RSS)
-                    x.sourceName(),
-                    x.category(),
-                    x.publishedAt(),
-                    fp
-            ));
-            inserted++;
+            Instant published = (x.publishedAt() != null) ? x.publishedAt() : Instant.now();
+            String normalizedSummary = summarizationService.summarize(x.title(), x.summary());
+
+            try {
+                repo.save(new ArticleEntity(
+                        title,
+                        url,
+                        normalizedSummary,
+                        x.sourceName(),
+                        x.category(),
+                        published,
+                        fp
+                ));
+                inserted++;
+            } catch (DataIntegrityViolationException dup) {
+                // ignore duplicate insert race
+            }
         }
 
         return inserted;
     }
 
-    // SHA-256 -> 64 hex chars (matches ArticleEntity fingerprint length=64)
     private String fingerprint(String url, String title) {
-        String raw = (url == null ? "" : url.trim()) + "||" + (title == null ? "" : title.trim());
+        String u = url.trim().toLowerCase();
+        String t = title.trim().replaceAll("\\s+", " ").toLowerCase();
+        String raw = u + "|" + t;
 
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");

@@ -3,6 +3,7 @@ package com.newswire.service;
 import com.newswire.dto.NewsItem;
 import com.newswire.source.FeedProperties;
 import com.newswire.source.FeedSource;
+import com.rometools.rome.feed.synd.SyndContent;
 import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.SyndFeedInput;
@@ -35,6 +36,7 @@ public class RssNewsService {
                     String link = safe(e.getLink());
                     if (title.isBlank() || link.isBlank()) continue;
 
+                    String summary = extractSummary(e);
                     Instant published = publishedInstant(e);
 
                     all.add(new NewsItem(
@@ -42,6 +44,7 @@ public class RssNewsService {
                             link,
                             feed.sourceName(),
                             feed.category(),
+                            summary,
                             published
                     ));
                 }
@@ -67,6 +70,21 @@ public class RssNewsService {
         Date d = e.getPublishedDate();
         if (d == null) d = e.getUpdatedDate();
         return (d != null) ? d.toInstant() : Instant.now();
+    }
+
+    private String extractSummary(SyndEntry e) {
+        SyndContent desc = e.getDescription();
+        if (desc != null && desc.getValue() != null && !desc.getValue().isBlank()) {
+            return cleanText(desc.getValue());
+        }
+        return "";
+    }
+
+    private String cleanText(String s) {
+        if (s == null) return "";
+        return s.replaceAll("<[^>]*>", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
     }
 
     private String safe(String s) {

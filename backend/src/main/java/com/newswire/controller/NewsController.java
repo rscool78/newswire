@@ -34,33 +34,32 @@ public class NewsController {
         this.refreshStatus = refreshStatus;
     }
 
-        // DB-backed read (paged) — stable API contract
+    // DB-backed read (paged) — stable API contract
     @GetMapping("/api/news")
     public PagedResponse<NewsItemDto> news(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
-            @RequestParam(required = false) Category category
+            @RequestParam(required = false) Category category,
+            @RequestParam(required = false) String source,
+            @RequestParam(required = false) String q
     ) {
-        int safeSize = Math.min(size, 100);
-        var pageable = PageRequest.of(page, safeSize);
+        var pageable = PageRequest.of(page, Math.min(size, 100));
 
-        Page<com.newswire.article.ArticleEntity> results = (category == null)
-                ? repo.findAllByOrderByPublishedAtDesc(pageable)
-                : repo.findByCategoryOrderByPublishedAtDesc(category, pageable);
+        var results = repo.search(category, source, q, pageable);
 
-        var items = results.getContent()
-                .stream()
+        var dtos = results.getContent().stream()
                 .map(NewsItemMapper::toDto)
                 .toList();
 
-        var meta = new PageMeta(
-                results.getNumber(),
-                results.getSize(),
-                results.getTotalElements(),
-                results.getTotalPages()
+        return new PagedResponse<>(
+                dtos,
+                new PageMeta(
+                        results.getNumber(),
+                        results.getSize(),
+                        results.getTotalElements(),
+                        results.getTotalPages()
+                )
         );
-
-        return new PagedResponse<>(items, meta);
     }
 
     @GetMapping("/api/news/status")
