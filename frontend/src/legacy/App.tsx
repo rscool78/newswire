@@ -6,9 +6,10 @@ import type {
   PageMeta,
   PagedResponse,
   Status,
-} from "./types/news";
+} from "../types/news";
 
-import NewsCard from "./components/NewsCard";
+// Not used
+//import NewsCard from "../components/NewsCard"; 
 
 function formatWhen(iso: string | null): string {
   if (!iso) return "—";
@@ -87,7 +88,6 @@ export default function App() {
       const data = (await r.json()) as PagedResponse<NewsItem>;
       const newItems = Array.isArray(data?.items) ? data.items : [];
 
-      
       setPageMeta(data?.page ?? null);
 
       if (opts?.append) {
@@ -345,11 +345,89 @@ export default function App() {
       </div>
       
       <ul style={{ marginTop: 14, paddingLeft: 0, listStyle: "none" }}>
-        {items.map((item, index) => (
-          <NewsCard
-            key={item.id ?? `${item.url}-${index}`}
-            item={item}
-          />
+        {items.map((x, i) => (
+          <li
+            key={x.id ?? `${x.url}-${i}`}
+            style={{
+              marginBottom: 12,
+              padding: 14,
+              borderRadius: 14,
+              border: "1px solid rgba(0,0,0,0.08)",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+            }}
+          >
+            <div style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
+              <a
+                href={x.url}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  fontWeight: 650,
+                  textDecoration: "none",
+                  color: "inherit",
+                  lineHeight: 1.25,
+                }}
+                onMouseOver={(e) => (e.currentTarget.style.textDecoration = "underline")}
+                onMouseOut={(e) => (e.currentTarget.style.textDecoration = "none")}
+              >
+                {x.title}
+              </a>
+
+              <span
+                style={{
+                  marginLeft: "auto",
+                  fontSize: 12,
+                  opacity: 0.7,
+                  whiteSpace: "nowrap",
+                }}
+                title={(() => {
+                  const d = new Date(x.publishedAt);
+                  return isNaN(d.getTime()) ? "Unknown time" : d.toLocaleString();
+                })()}
+              >
+                {relativeFromNow(x.publishedAt)}
+              </span>
+            </div>
+
+            <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <span
+                style={{
+                  fontSize: 12,
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                  background: "rgba(0,0,0,0.06)",
+                }}
+                title="Source"
+              >
+                {x.sourceName}
+              </span>
+
+              <span
+                style={{
+                  fontSize: 12,
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                  background: "rgba(0,0,0,0.06)",
+                }}
+                title="Category"
+              >
+                {x.category}
+              </span>
+
+              <span style={{ fontSize: 12, opacity: 0.7 }}>
+                {(() => {
+                  const d = new Date(x.publishedAt);
+                  return isNaN(d.getTime()) ? "Unknown time" : d.toLocaleString();
+                })()}
+              </span>
+            </div>
+
+            {x.summary ? (
+              <div style={{ marginTop: 10, fontSize: 13, opacity: 0.92, lineHeight: 1.4 }}>
+                {x.summary.length > 240 ? x.summary.slice(0, 240) + "…" : x.summary}
+              </div>
+            ) : null}
+          </li>
         ))}
       </ul>
       <div ref={loadMoreRef} style={{ height: 1 }} />

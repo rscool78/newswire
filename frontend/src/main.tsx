@@ -35,7 +35,7 @@ const LEGACY_VERSION: 1 | 2 = 1;
 
 ReactDOM.createRoot(document.getElementById("app")!).render(
   <React.StrictMode>
-    {USE_LEGACY ? (LEAGACY_VERSION === 1? <App1 /> : <App2 />) : <App />
+    {USE_LEGACY ? (LEGACY_VERSION === 1? <App1 /> : <App2 />) : <App />
     }
   </React.StrictMode>
 );
