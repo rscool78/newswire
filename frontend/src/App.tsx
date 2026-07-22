@@ -4,11 +4,14 @@ import type {
   Category,
   NewsItem,
   PageMeta,
-  PagedResponse,
-  Status,
 } from "./types/news";
 
 import NewsCard from "./components/NewsCard";
+import { useStatus } from "./hooks/useStatus";
+import { 
+  getNews,
+  refreshNews,
+ } from "./services/newsApi";
 
 function formatWhen(iso: string | null): string {
   if (!iso) return "—";
@@ -39,11 +42,8 @@ export default function App() {
   const [page, setPage] = useState(0);
   const [pageMeta, setPageMeta] = useState<PageMeta | null>(null);
   const [items, setItems] = useState<NewsItem[]>([]);
-  const [status, setStatus] = useState<Status>({
-    lastRun: null,
-    lastSuccess: null,
-    lastError: null,
-  });
+  //Removed const [status, setStatus] = useState(...)
+  const { status, loadStatus } = useStatus();
 
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -70,24 +70,17 @@ export default function App() {
     setError(null);
 
     try {
-      const qParam = debouncedQuery.trim()
-        ? `&q=${encodeURIComponent(debouncedQuery.trim())}`
-        : "";
-      
-      const base =
-        selectedCategory === "ALL"
-          ? `/api/news?page=${pageNumber}&size=${PAGE_SIZE}${qParam}`
-          : `/api/news?page=${pageNumber}&size=${PAGE_SIZE}&category=${encodeURIComponent(
-        selectedCategory
-      )}${qParam}`;
+      const data = await getNews({
+        category: selectedCategory,
+        page: pageNumber,
+        size: PAGE_SIZE,
+        query: debouncedQuery,
+      });
 
-      const r = await fetch(base);
-      if (!r.ok) throw new Error(`GET ${base} failed: ${r.status}`);
+      const newItems = Array.isArray(data.items)
+        ? data.items
+        : [];
 
-      const data = (await r.json()) as PagedResponse<NewsItem>;
-      const newItems = Array.isArray(data?.items) ? data.items : [];
-
-      
       setPageMeta(data?.page ?? null);
 
       if (opts?.append) {
@@ -102,20 +95,7 @@ export default function App() {
     }
   }
 
-  async function loadStatus() {
-    try {
-      const r = await fetch("/api/news/status");
-      if (!r.ok) throw new Error(`GET /api/news/status failed: ${r.status}`);
-      const data = (await r.json()) as Status;
-      setStatus({
-        lastRun: data?.lastRun ?? null,
-        lastSuccess: data?.lastSuccess ?? null,
-        lastError: data?.lastError ?? null,
-      });
-    } catch {
-      // don't hard-fail UI if status endpoint is down
-    }
-  }
+  
 
   async function goPrev() {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -139,10 +119,11 @@ export default function App() {
     setRefreshing(true);
     setError(null);
     try {
-      const r = await fetch("/api/news/refresh", { method: "POST" });
-      if (!r.ok) throw new Error(`POST /api/news/refresh failed: ${r.status}`);
+      await refreshNews();
       // After refresh: reload status + news
-      await Promise.all([loadStatus(), loadNews(category, page)]);
+      await Promise.all([
+        loadStatus(),
+        loadNews(category, page)]);
     } catch (e: any) {
       setError(e?.message ?? "Refresh failed");
       await loadStatus();
@@ -151,16 +132,7 @@ export default function App() {
     }
   }
 
-  // initial load
-  useEffect(() => {
-    loadNews("ALL");
-    loadStatus();
-    // refresh status every 15s so header stays current
-    const t = setInterval(loadStatus, 30000); // 30 seconds
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  
   // reload news when category changes
   useEffect(() => {
     setPage(0); // Set page to zero
