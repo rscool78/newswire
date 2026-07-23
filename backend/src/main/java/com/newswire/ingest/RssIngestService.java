@@ -32,7 +32,8 @@ public class RssIngestService {
                         ? entry.getPublishedDate().toInstant()
                         : Instant.now();
 
-                String fingerprint = FingerprintUtil.sha256(url.toLowerCase().trim() + "|" + title.toLowerCase().trim());
+                String fingerprint =
+                    FingerprintUtil.articleFingerprint(url, title);
 
                 articles.add(new Article(
                         title,

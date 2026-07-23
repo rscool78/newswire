@@ -6,9 +6,8 @@ import com.newswire.dto.NewsItem;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.newswire.util.FingerprintUtil;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.Instant;
 
 @Service
@@ -32,7 +31,7 @@ public class ArticleStoreService {
 
             if (title.isBlank() || url.isBlank()) continue;
 
-            String fp = fingerprint(url, title);
+            String fp = FingerprintUtil.articleFingerprint(url, title);
 
             if (repo.existsByFingerprint(fp)) continue;
 
@@ -57,21 +56,5 @@ public class ArticleStoreService {
 
         return inserted;
     }
-
-    private String fingerprint(String url, String title) {
-        String u = url.trim().toLowerCase();
-        String t = title.trim().replaceAll("\\s+", " ").toLowerCase();
-        String raw = u + "|" + t;
-
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] hash = md.digest(raw.getBytes(StandardCharsets.UTF_8));
-
-            StringBuilder sb = new StringBuilder(hash.length * 2);
-            for (byte b : hash) sb.append(String.format("%02x", b));
-            return sb.toString();
-        } catch (Exception e) {
-            return Integer.toHexString(raw.hashCode());
-        }
-    }
+    
 }

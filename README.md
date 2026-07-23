@@ -29,7 +29,11 @@ The project is intended as both a practical application and a learning project f
 - Vite
 
 ---
-
+# Refactored frontend service layer
+- newsApi.ts now the single API access layer
+- useStatus encapsulates status loading and polling
+- App.tsx no longer contains raw fetch() calls
+- Networking concerns have been separated from the UI
 # Current Features
 
 - Search news articles

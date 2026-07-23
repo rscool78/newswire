@@ -13,28 +13,11 @@ import {
   refreshNews,
  } from "./services/newsApi";
 
-function formatWhen(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "—";
-  return d.toLocaleString();
-}
-
-function relativeFromNow(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "";
-  const ms = Date.now() - d.getTime();
-  const sec = Math.floor(ms / 1000);
-  if (sec < 10) return "just now";
-  if (sec < 60) return `${sec}s ago`;
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 48) return `${hr}h ago`;
-  const days = Math.floor(hr / 24);
-  return `${days}d ago`;
-}
+import StatusBar from "./components/StatusBar";
+import SearchBar from "./components/SearchBar";
+import CategoryFilter from "./components/CategoryFilter";
+import RefreshButton from "./components/RefreshButton";
+import Pagination from "./components/Pagination";
 
 export default function App() {
   const PAGE_SIZE = 50;
@@ -204,80 +187,56 @@ export default function App() {
 //  }, [items]);
 
   return (
-    <div style={{ padding: 24, fontFamily: "system-ui" }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
+  <div 
+    style={{ maxWidth: 1200,
+      margin: "0 auto",
+      padding: 24,
+      boxSizing: "border-box",
+      fontFamily: "system-ui",
+      }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 24,
+        flexWrap: "wrap",
+      }}
+    >
+      <div>
         <h1 style={{ margin: 0 }}>Newswire</h1>
-
-        <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
-            <input
-              placeholder="Search news..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              style={{
-                padding: "6px 8px",
-                borderRadius: 8,
-                border: "1px solid #ccc",
-                minWidth: 220
-              }}
-              disabled={loading || refreshing}
-            />
-          <label style={{ fontSize: 13, opacity: 0.8 }}>
-            Category{" "}
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value as any)}
-              style={{ padding: "6px 8px", borderRadius: 8 }}
-              disabled={loading || refreshing}
-            >
-              <option value="ALL">All</option>
-              {/* use categories from current list if available; fallback to a few known */}
-              {([
-                "FINANCE",
-                 "POLITICS",
-                 "HEALTHCARE",
-                 "TECHNOLOGY",
-                 "MILITARY", 
-                 "MILITARY_INTELLIGENCE", 
-                 "WORLD_POPULATION", 
-                 "WORLD_ECONOMIES"
-                ] as Category[]).map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                )
-              )}
-            </select>
-          </label>
-
-          <button
-            onClick={refreshNow}
-            disabled={refreshing || loading}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 10,
-              cursor: refreshing ? "not-allowed" : "pointer",
-            }}
-            title="Fetch RSS and store new articles"
-          >
-            {refreshing ? "Refreshing…" : "Refresh now"}
-          </button>
-        </div>
+        <StatusBar status={status} />
       </div>
 
-      <div style={{ marginTop: 8, fontSize: 13, opacity: 0.75 }}>
-        <span>
-          Last success: <strong>{formatWhen(status.lastSuccess)}</strong>{" "}
-          {status.lastSuccess ? `(${relativeFromNow(status.lastSuccess)})` : ""}
-        </span>
-        <span style={{ marginLeft: 12 }}>
-          Last run: <strong>{formatWhen(status.lastRun)}</strong>
-        </span>
-        {status.lastError ? (
-          <span style={{ marginLeft: 12 }}>
-            Error: <strong>{status.lastError}</strong>
-          </span>
-        ) : null}
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
+        <SearchBar
+          value={query}
+          onChange={setQuery}
+          disabled={loading || refreshing}
+        />
+
+          <CategoryFilter
+            value={category}
+            onChange={setCategory}
+            disabled={loading || refreshing}
+          />
+
+        <RefreshButton
+          refreshing={refreshing}
+          loading={loading}
+          onClick={refreshNow}
+        />
       </div>
+    </div>
+
+      
 
       {error ? (
         <p style={{ marginTop: 12 }}>
@@ -287,35 +246,15 @@ export default function App() {
 
       {loading ? <p style={{ marginTop: 12 }}>Loading…</p> : null}
 
-            <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
-        <button
-          onClick={goPrev}
-          disabled={loading || refreshing || page === 0}
-          style={{ padding: "6px 10px", borderRadius: 10 }}
-        >
-          ← Prev
-        </button>
-
-        <div style={{ fontSize: 13, opacity: 0.8 }}>
-          Page <strong>{(pageMeta?.number ?? page) + 1}</strong>
-          {pageMeta ? (
-            <>
-              {" "}
-              of <strong>{pageMeta.totalPages}</strong> •{" "}
-              <strong>{pageMeta.totalElements}</strong> articles
-            </>
-          ) : null}
-        </div>
-
-        <button
-          onClick={goNext}
-          disabled={loading || refreshing || (pageMeta ? page >= pageMeta.totalPages - 1 : false)}
-          style={{ padding: "6px 10px", borderRadius: 10, marginLeft: "auto" }}
-        >
-          Next →
-        </button>
-      </div>
-      
+      <Pagination
+        page={page}
+        pageMeta={pageMeta}
+        loading={loading}
+        refreshing={refreshing}
+        onPrevious={goPrev}
+        onNext={goNext}
+      />
+              
       <ul style={{ marginTop: 14, paddingLeft: 0, listStyle: "none" }}>
         {items.map((item, index) => (
           <NewsCard
@@ -325,11 +264,12 @@ export default function App() {
         ))}
       </ul>
       <div ref={loadMoreRef} style={{ height: 1 }} />
-      {hasMore && (loadingMore ? (
+
+      {hasMore && loadingMore ? (
         <p style={{ marginTop: 10, opacity: 0.7 }}>
           Loading more…
         </p>
-      ) : null)}
+      ) : null}
     </div>
   );
 }
