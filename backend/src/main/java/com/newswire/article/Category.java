@@ -1,6 +1,7 @@
 package com.newswire.article;
 
 public enum Category {
+    GENERAL,
     FINANCE,
     POLITICS,
     HEALTHCARE,
