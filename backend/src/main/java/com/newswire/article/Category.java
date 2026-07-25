@@ -9,7 +9,10 @@ public enum Category {
     MILITARY,
     MILITARY_INTELLIGENCE,
     WORLD_POPULATION,
-    WORLD_ECONOMIES;
+    WORLD_ECONOMIES,
+    SPORTS,
+    ENTERTAINMENT,
+    CULTURE;
 
     public static Category from(String value) {
         if (value == null || value.isBlank()) {
